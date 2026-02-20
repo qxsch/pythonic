@@ -34,7 +34,10 @@ class Py
             $value instanceof PyString || $value instanceof PySet ||
             $value instanceof PyRange || $value instanceof PyCounter ||
             $value instanceof PyDefaultDict || $value instanceof PyDeque ||
-            $value instanceof PyFrozenSet || $value instanceof PyPath) {
+            $value instanceof PyFrozenSet || $value instanceof PyPath ||
+            $value instanceof PyTuple || $value instanceof PyJson ||
+            $value instanceof PyOrderedDict || $value instanceof PyDateTime ||
+            $value instanceof PyTimeDelta) {
             return $value;
         }
         if (is_string($value)) {
@@ -406,10 +409,9 @@ class Py
         return new PySet($items);
     }
 
-    public static function tuple(mixed ...$items): PyList
+    public static function tuple(mixed ...$items): PyTuple
     {
-        // PHP doesn't have true immutable tuples, return PyList
-        return new PyList($items);
+        return new PyTuple($items);
     }
 
     public static function counter(iterable|string $elements = []): PyCounter
@@ -427,6 +429,11 @@ class Py
         return new PyDeque($items, $maxlen);
     }
 
+    public static function chainmap(PyDict|array ...$maps): PyChainMap
+    {
+        return new PyChainMap(...$maps);
+    }
+
     public static function frozenset(iterable $items = []): PyFrozenSet
     {
         return new PyFrozenSet($items);
@@ -437,11 +444,84 @@ class Py
         return new PyPath($path);
     }
 
-    // ─── Itertools bridge ────────────────────────────────────
-
-    public static function itertools(): string
+    /** json.loads() — decode JSON to Pythonic types. */
+    public static function json_loads(string $s, bool $wrap = true): mixed
     {
-        return Itertools::class;
+        return PyJson::loads($s, $wrap);
+    }
+
+    /** json.dumps() — encode to JSON string. */
+    public static function json_dumps(mixed $obj, ?int $indent = null, bool $sort_keys = false, bool $ensure_ascii = false): string
+    {
+        return PyJson::dumps($obj, $indent, $sort_keys, $ensure_ascii);
+    }
+
+    // ─── OrderedDict bridge ──────────────────────────────────
+
+    public static function ordereddict(array $data = []): PyOrderedDict
+    {
+        return new PyOrderedDict($data);
+    }
+
+    public static function partial(callable $fn, mixed ...$args): \Closure
+    {
+        return Functools::partial($fn, ...$args);
+    }
+
+    public static function reduce(callable $fn, iterable $iterable, mixed $initial = null): mixed
+    {
+        return Functools::reduce($fn, $iterable, $initial);
+    }
+
+    // ─── CSV bridge ──────────────────────────────────────────
+
+    public static function csv_reader(string $path, string $delimiter = ',', string $enclosure = '"', string $escape = '\\'): PyList
+    {
+        return PyCsv::reader($path, $delimiter, $enclosure, $escape);
+    }
+
+    public static function csv_DictReader(string $path, ?array $fieldnames = null, string $delimiter = ','): PyList
+    {
+        return PyCsv::DictReader($path, $fieldnames, $delimiter);
+    }
+
+    public static function csv_writer(string $path, iterable $rows, string $delimiter = ','): void
+    {
+        PyCsv::writer($path, $rows, $delimiter);
+    }
+
+    public static function csv_DictWriter(string $path, array $fieldnames, iterable $rows, string $delimiter = ','): void
+    {
+        PyCsv::DictWriter($path, $fieldnames, $rows, $delimiter);
+    }
+
+    // ─── Operator bridge ─────────────────────────────────────
+
+    public static function itemgetter(string|int ...$keys): \Closure
+    {
+        return Operator::itemgetter(...$keys);
+    }
+
+    public static function attrgetter(string ...$attrs): \Closure
+    {
+        return Operator::attrgetter(...$attrs);
+    }
+
+    public static function methodcaller(string $method, mixed ...$args): \Closure
+    {
+        return Operator::methodcaller($method, ...$args);
+    }
+
+    // ─── DateTime bridge ─────────────────────────────────────
+
+    public static function datetime(\DateTimeImmutable|string|null $datetime = null, \DateTimeZone|string|null $timezone = null): PyDateTime
+    {
+        return new PyDateTime($datetime, $timezone);
+    }
+
+    public static function timedelta(int $days = 0, int $seconds = 0, int $microseconds = 0, int $minutes = 0, int $hours = 0, int $weeks = 0): PyTimeDelta
+    {
+        return new PyTimeDelta($days, $seconds, $microseconds, $minutes, $hours, $weeks);
     }
 
     // ─── Internal helpers ────────────────────────────────────
@@ -455,6 +535,8 @@ class Py
         if ($iterable instanceof PyCounter) return $iterable->toPhp();
         if ($iterable instanceof PyDeque) return $iterable->toPhp();
         if ($iterable instanceof PyFrozenSet) return $iterable->toPhp();
+        if ($iterable instanceof PyTuple) return $iterable->toPhp();
+        if ($iterable instanceof PyOrderedDict) return $iterable->toPhp();
         return iterator_to_array($iterable, false);
     }
 }

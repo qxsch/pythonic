@@ -65,6 +65,9 @@ class PyString implements ArrayAccess, Countable, IteratorAggregate, JsonSeriali
 
     public function offsetExists(mixed $offset): bool
     {
+        if (is_string($offset) && static::parseSliceNotation($offset) !== null) {
+            return true; // slice notation is always structurally valid
+        }
         try {
             $this->resolveIndex((int)$offset);
             return true;
@@ -73,8 +76,26 @@ class PyString implements ArrayAccess, Countable, IteratorAggregate, JsonSeriali
         }
     }
 
-    public function offsetGet(mixed $offset): string
+    /**
+     * Get character by index or Python-style slice notation string.
+     *
+     *   $s[0]       // first character
+     *   $s[-1]      // last character
+     *   $s["1:3"]   // slice(1, 3)
+     *   $s["::2"]   // slice(null, null, 2) — every 2nd char
+     *   $s["::-1"]  // slice(null, null, -1) — reversed
+     *
+     * @return string|static  string for single char access, static for slice
+     */
+    public function offsetGet(mixed $offset): string|static
     {
+        if (is_string($offset)) {
+            $slice = static::parseSliceNotation($offset);
+            if ($slice !== null) {
+                [$start, $stop, $step] = $slice;
+                return $this->slice($start, $stop, $step ?? 1);
+            }
+        }
         return mb_substr($this->data, $this->resolveIndex((int)$offset), 1);
     }
 

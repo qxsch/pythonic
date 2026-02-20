@@ -32,6 +32,7 @@ use Generator;
  *   Itertools::compress(data, selectors)           → filtered by truthy selectors
  *   Itertools::count(start, step)                  → infinite counter
  *   Itertools::tee(iterable, n)                    → n independent copies
+ *   Itertools::filterfalse(predicate, iterable)    → items where predicate is false
  */
 class Itertools
 {
@@ -273,6 +274,59 @@ class Itertools
             }
             yield $tuple;
         }
+    }
+
+    /**
+     * filterfalse(predicate, iterable) — yield items where predicate is false.
+     *   filterfalse(fn($x) => $x % 2, [1,2,3,4,5,6]) → 2, 4, 6
+     *
+     * The inverse of takewhile's cousin filter — yields elements for which
+     * the predicate returns false. If predicate is null, yields falsy items.
+     */
+    public static function filterfalse(?callable $predicate, iterable $iterable): Generator
+    {
+        $predicate ??= fn($x) => (bool) $x;
+        foreach ($iterable as $item) {
+            if (!$predicate($item)) {
+                yield $item;
+            }
+        }
+    }
+
+    /**
+     * tee(iterable, n=2) — return n independent iterators from a single iterable.
+     *
+     * Returns an array of n Generator objects. Each generator yields the same
+     * items as the original iterable, independently of the others.
+     *
+     * Note: This buffers values in memory as iterators advance at different rates.
+     * Like Python, once tee() has made a split, the original iterable should not
+     * be used anywhere else.
+     *
+     * @return Generator[]
+     */
+    public static function tee(iterable $iterable, int $n = 2): array
+    {
+        if ($n < 0) {
+            throw new \ValueError('n must be >= 0');
+        }
+        if ($n === 0) {
+            return [];
+        }
+
+        // Materialise into a shared buffer so each copy can iterate independently
+        $buffer = self::toArray($iterable);
+
+        $generators = [];
+        for ($i = 0; $i < $n; $i++) {
+            $generators[] = (static function () use ($buffer): Generator {
+                foreach ($buffer as $item) {
+                    yield $item;
+                }
+            })();
+        }
+
+        return $generators;
     }
 
     // ─── Combinatoric iterators ──────────────────────────────

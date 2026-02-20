@@ -39,8 +39,20 @@ use QXS\pythonic\PyCounter;
 use QXS\pythonic\PyDefaultDict;
 use QXS\pythonic\PyDeque;
 use QXS\pythonic\PyFrozenSet;
+use QXS\pythonic\PyChainMap;
 use QXS\pythonic\PyPath;
+use QXS\pythonic\PyTuple;
+use QXS\pythonic\PyJson;
 use QXS\pythonic\Itertools;
+use QXS\pythonic\PyOrderedDict;
+use QXS\pythonic\Functools;
+use QXS\pythonic\PyCsv;
+use QXS\pythonic\Operator;
+use QXS\pythonic\PyDateTime;
+use QXS\pythonic\PyTimeDelta;
+use QXS\pythonic\Heapq;
+use QXS\pythonic\Bisect;
+use QXS\pythonic\Shutil;
 
 if (!function_exists('py')) {
     /**
@@ -333,6 +345,17 @@ if (!function_exists('py_deque')) {
     }
 }
 
+if (!function_exists('py_chainmap')) {
+    /**
+     * Create a PyChainMap:
+     *   py_chainmap(['color' => 'blue'], ['color' => 'red', 'size' => 'M'])
+     */
+    function py_chainmap(PyDict|array ...$maps): PyChainMap
+    {
+        return new PyChainMap(...$maps);
+    }
+}
+
 if (!function_exists('py_frozenset')) {
     /** Create a PyFrozenSet: py_frozenset([1, 2, 3]) */
     function py_frozenset(iterable $items = []): PyFrozenSet
@@ -349,17 +372,605 @@ if (!function_exists('py_path')) {
     }
 }
 
-if (!function_exists('py_itertools')) {
+if (!function_exists('py_tuple')) {
     /**
-     * Access itertools (returns class name for static calls):
-     *   py_itertools()::chain([1,2], [3,4])
-     *   py_itertools()::product([1,2], [3,4])
-     *
-     * Or use Itertools directly:
-     *   Itertools::chain([1,2], [3,4])
+     * Create an immutable PyTuple from variadic args:
+     *   py_tuple(1, 2, 3)
+     *   py_tuple(...$items)
      */
-    function py_itertools(): string
+    function py_tuple(mixed ...$items): PyTuple
     {
-        return Itertools::class;
+        return new PyTuple($items);
+    }
+}
+
+if (!function_exists('py_json_loads')) {
+    /**
+     * Python json.loads() — decode JSON into Pythonic data structures.
+     *   py_json_loads('{"name": "Alice"}')  → PyDict
+     *   py_json_loads('[1, 2, 3]')            → PyList
+     */
+    function py_json_loads(string $s, bool $wrap = true): mixed
+    {
+        return PyJson::loads($s, $wrap);
+    }
+}
+
+if (!function_exists('py_json_dumps')) {
+    /**
+     * Python json.dumps() — encode a value to JSON string.
+     *   py_json_dumps($data)              → compact JSON
+     *   py_json_dumps($data, indent: 2)   → pretty JSON
+     */
+    function py_json_dumps(mixed $obj, ?int $indent = null, bool $sort_keys = false, bool $ensure_ascii = false): string
+    {
+        return PyJson::dumps($obj, $indent, $sort_keys, $ensure_ascii);
+    }
+}
+
+if (!function_exists('py_chain')) {
+    /**
+     * itertools.chain() — chain multiple iterables together.
+     *   py_chain([1,2], [3,4])  → Generator yielding 1,2,3,4
+     */
+    function py_chain(iterable ...$iterables): Generator
+    {
+        return Itertools::chain(...$iterables);
+    }
+}
+
+if (!function_exists('py_islice')) {
+    /**
+     * itertools.islice() — slice an iterable.
+     *   py_islice($iter, 5)        → first 5 items
+     *   py_islice($iter, 2, 8, 2)  → items 2,4,6
+     */
+    function py_islice(iterable $iterable, int $startOrStop, ?int $stop = null, int $step = 1): Generator
+    {
+        return Itertools::islice($iterable, $startOrStop, $stop, $step);
+    }
+}
+
+if (!function_exists('py_accumulate')) {
+    /**
+     * itertools.accumulate() — running totals / accumulated results.
+     *   py_accumulate([1,2,3,4])  → Generator yielding 1,3,6,10
+     */
+    function py_accumulate(iterable $iterable, ?callable $fn = null, mixed $initial = null): Generator
+    {
+        return Itertools::accumulate($iterable, $fn, $initial);
+    }
+}
+
+if (!function_exists('py_groupby')) {
+    /**
+     * itertools.groupby() — group consecutive elements by key.
+     *   py_groupby($items, fn($x) => $x['category'])
+     */
+    function py_groupby(iterable $iterable, ?callable $key = null): Generator
+    {
+        return Itertools::groupby($iterable, $key);
+    }
+}
+
+if (!function_exists('py_product')) {
+    /**
+     * itertools.product() — Cartesian product of iterables.
+     *   py_product([1,2], ['a','b'])  → [1,'a'], [1,'b'], [2,'a'], [2,'b']
+     */
+    function py_product(iterable ...$iterables): Generator
+    {
+        return Itertools::product(...$iterables);
+    }
+}
+
+if (!function_exists('py_permutations')) {
+    /**
+     * itertools.permutations() — r-length permutations of an iterable.
+     *   py_permutations([1,2,3], 2)  → [1,2], [1,3], [2,1], ...
+     */
+    function py_permutations(iterable $iterable, ?int $r = null): Generator
+    {
+        return Itertools::permutations($iterable, $r);
+    }
+}
+
+if (!function_exists('py_combinations')) {
+    /**
+     * itertools.combinations() — r-length combinations of an iterable.
+     *   py_combinations([1,2,3], 2)  → [1,2], [1,3], [2,3]
+     */
+    function py_combinations(iterable $iterable, int $r): Generator
+    {
+        return Itertools::combinations($iterable, $r);
+    }
+}
+
+if (!function_exists('py_zip_longest')) {
+    /**
+     * itertools.zip_longest() — zip iterables, filling shorter with $fillvalue.
+     *   py_zip_longest(null, [1,2,3], ['a','b'])  → [1,'a'], [2,'b'], [3,null]
+     */
+    function py_zip_longest(mixed $fillvalue = null, iterable ...$iterables): Generator
+    {
+        return Itertools::zip_longest($fillvalue, ...$iterables);
+    }
+}
+
+if (!function_exists('py_takewhile')) {
+    /**
+     * itertools.takewhile() — yield elements while predicate is true.
+     *   py_takewhile(fn($x) => $x < 5, [1,3,6,2])  → 1, 3
+     */
+    function py_takewhile(callable $predicate, iterable $iterable): Generator
+    {
+        return Itertools::takewhile($predicate, $iterable);
+    }
+}
+
+if (!function_exists('py_dropwhile')) {
+    /**
+     * itertools.dropwhile() — drop elements while predicate is true, then yield rest.
+     *   py_dropwhile(fn($x) => $x < 5, [1,3,6,2])  → 6, 2
+     */
+    function py_dropwhile(callable $predicate, iterable $iterable): Generator
+    {
+        return Itertools::dropwhile($predicate, $iterable);
+    }
+}
+
+if (!function_exists('py_starmap')) {
+    /**
+     * itertools.starmap() — apply function to each unpacked element.
+     *   py_starmap(fn($a,$b) => $a+$b, [[1,2],[3,4]])  → 3, 7
+     */
+    function py_starmap(callable $fn, iterable $iterable): Generator
+    {
+        return Itertools::starmap($fn, $iterable);
+    }
+}
+
+if (!function_exists('py_filterfalse')) {
+    /**
+     * itertools.filterfalse() — yield elements where predicate is false.
+     *   py_filterfalse(fn($x) => $x % 2, [1,2,3,4])  → 2, 4
+     */
+    function py_filterfalse(?callable $predicate, iterable $iterable): Generator
+    {
+        return Itertools::filterfalse($predicate, $iterable);
+    }
+}
+
+if (!function_exists('py_pairwise')) {
+    /**
+     * itertools.pairwise() — yield consecutive overlapping pairs.
+     *   py_pairwise([1,2,3,4])  → [1,2], [2,3], [3,4]
+     */
+    function py_pairwise(iterable $iterable): Generator
+    {
+        return Itertools::pairwise($iterable);
+    }
+}
+
+if (!function_exists('py_compress')) {
+    /**
+     * itertools.compress() — filter data by selectors.
+     *   py_compress(['a','b','c'], [1,0,1])  → 'a', 'c'
+     */
+    function py_compress(iterable $data, iterable $selectors): Generator
+    {
+        return Itertools::compress($data, $selectors);
+    }
+}
+
+if (!function_exists('py_ordereddict')) {
+    /**
+     * Create a PyOrderedDict:
+     *   py_ordereddict(['a' => 1, 'b' => 2])
+     */
+    function py_ordereddict(array $data = []): PyOrderedDict
+    {
+        return new PyOrderedDict($data);
+    }
+}
+
+if (!function_exists('py_lru_cache')) {
+    /**
+     * functools.lru_cache() — memoize a function with an LRU cache.
+     *   $cached = py_lru_cache($fn, 128);
+     */
+    function py_lru_cache(callable $fn, int $maxsize = 128): \Closure
+    {
+        return Functools::lru_cache($fn, $maxsize);
+    }
+}
+
+if (!function_exists('py_cache')) {
+    /**
+     * functools.cache() — simple unbounded memoization.
+     *   $cached = py_cache($fn);
+     */
+    function py_cache(callable $fn): \Closure
+    {
+        return Functools::cache($fn);
+    }
+}
+
+if (!function_exists('py_cmp_to_key')) {
+    /**
+     * functools.cmp_to_key() — convert a cmp function to a key function for sorting.
+     *   py_sorted($items, key: py_cmp_to_key(fn($a,$b) => $a <=> $b))
+     */
+    function py_cmp_to_key(callable $cmpFn): \Closure
+    {
+        return Functools::cmp_to_key($cmpFn);
+    }
+}
+
+if (!function_exists('py_compose')) {
+    /**
+     * functools.compose() — compose multiple functions (right to left).
+     *   $fn = py_compose($f, $g, $h);  // $fn($x) === $f($g($h($x)))
+     */
+    function py_compose(callable ...$fns): \Closure
+    {
+        return Functools::compose(...$fns);
+    }
+}
+
+if (!function_exists('py_partial')) {
+    /**
+     * functools.partial() — create a partially applied function.
+     *   py_partial($fn, 1, 2)(3)  → $fn(1, 2, 3)
+     */
+    function py_partial(callable $fn, mixed ...$frozenArgs): \Closure
+    {
+        return Functools::partial($fn, ...$frozenArgs);
+    }
+}
+
+if (!function_exists('py_reduce')) {
+    /**
+     * functools.reduce() — apply a function of two arguments cumulatively.
+     *   py_reduce(fn($a, $b) => $a + $b, [1,2,3,4])  → 10
+     */
+    function py_reduce(callable $fn, iterable $iterable, mixed $initial = null): mixed
+    {
+        return Functools::reduce($fn, $iterable, $initial);
+    }
+}
+
+if (!function_exists('py_csv_reader')) {
+    /**
+     * csv.reader() — read CSV file as PyList of PyList rows.
+     *   py_csv_reader('/path/to/file.csv')
+     */
+    function py_csv_reader(string $path, string $delimiter = ',', string $enclosure = '"', string $escape = '\\'): PyList
+    {
+        return PyCsv::reader($path, $delimiter, $enclosure, $escape);
+    }
+}
+
+if (!function_exists('py_csv_dictreader')) {
+    /**
+     * csv.DictReader() — read CSV file as PyList of PyDict rows.
+     *   py_csv_dictreader('/path/to/file.csv')
+     */
+    function py_csv_dictreader(string $path, ?array $fieldnames = null, string $delimiter = ','): PyList
+    {
+        return PyCsv::DictReader($path, $fieldnames, $delimiter);
+    }
+}
+
+if (!function_exists('py_methodcaller')) {
+    /**
+     * operator.methodcaller() — return a callable that calls a method on its operand.
+     *   $upper = py_methodcaller('upper');
+     *   $upper(py_str('hello'))  → PyString('HELLO')
+     */
+    function py_methodcaller(string $method, mixed ...$args): \Closure
+    {
+        return Operator::methodcaller($method, ...$args);
+    }
+}
+
+if (!function_exists('py_itemgetter')) {
+    /**
+     * operator.itemgetter() — return a callable that fetches items by key.
+     *   $getName = py_itemgetter('name');
+     *   $getName(['name' => 'Alice'])  → 'Alice'
+     */
+    function py_itemgetter(string|int ...$keys): \Closure
+    {
+        return Operator::itemgetter(...$keys);
+    }
+}
+
+if (!function_exists('py_attrgetter')) {
+    /**
+     * operator.attrgetter() — return a callable that fetches attributes.
+     *   $getX = py_attrgetter('x');
+     *   $getX($point)  → $point->x
+     */
+    function py_attrgetter(string ...$attrs): \Closure
+    {
+        return Operator::attrgetter(...$attrs);
+    }
+}
+
+if (!function_exists('py_datetime')) {
+    /**
+     * Create a PyDateTime:
+     *   py_datetime()                → now
+     *   py_datetime('2024-01-15')   → specific date
+     */
+    function py_datetime(\DateTimeImmutable|string|null $datetime = null, \DateTimeZone|string|null $timezone = null): PyDateTime
+    {
+        return new PyDateTime($datetime, $timezone);
+    }
+}
+
+if (!function_exists('py_timedelta')) {
+    /**
+     * Create a PyTimeDelta:
+     *   py_timedelta(days: 5, hours: 3)
+     */
+    function py_timedelta(int $days = 0, int $seconds = 0, int $microseconds = 0, int $minutes = 0, int $hours = 0, int $weeks = 0): PyTimeDelta
+    {
+        return new PyTimeDelta($days, $seconds, $microseconds, $minutes, $hours, $weeks);
+    }
+}
+
+if (!function_exists('py_heappush')) {
+    /**
+     * heapq.heappush() — push an item onto a heap.
+     *   py_heappush($heap, 5)
+     */
+    function py_heappush(PyList $heap, mixed $item): void
+    {
+        Heapq::heappush($heap, $item);
+    }
+}
+
+if (!function_exists('py_heappop')) {
+    /**
+     * heapq.heappop() — pop the smallest item from a heap.
+     *   $smallest = py_heappop($heap)
+     */
+    function py_heappop(PyList $heap): mixed
+    {
+        return Heapq::heappop($heap);
+    }
+}
+
+if (!function_exists('py_heapify')) {
+    /**
+     * heapq.heapify() — transform a PyList into a heap in-place.
+     *   py_heapify($list)
+     */
+    function py_heapify(PyList $list): void
+    {
+        Heapq::heapify($list);
+    }
+}
+
+if (!function_exists('py_nlargest')) {
+    /**
+     * heapq.nlargest() — return the n largest elements.
+     *   py_nlargest(3, [1,8,2,7,3])  → PyList [8,7,3]
+     */
+    function py_nlargest(int $n, iterable $iterable, ?\Closure $key = null): PyList
+    {
+        return Heapq::nlargest($n, $iterable, $key);
+    }
+}
+
+if (!function_exists('py_nsmallest')) {
+    /**
+     * heapq.nsmallest() — return the n smallest elements.
+     *   py_nsmallest(3, [1,8,2,7,3])  → PyList [1,2,3]
+     */
+    function py_nsmallest(int $n, iterable $iterable, ?\Closure $key = null): PyList
+    {
+        return Heapq::nsmallest($n, $iterable, $key);
+    }
+}
+
+if (!function_exists('py_heapmerge')) {
+    /**
+     * heapq.merge() — merge multiple sorted inputs into a single sorted output.
+     *   py_heapmerge([1,3,5], [2,4,6])  → PyList [1,2,3,4,5,6]
+     */
+    function py_heapmerge(iterable ...$iterables): PyList
+    {
+        return Heapq::merge(...$iterables);
+    }
+}
+
+if (!function_exists('py_bisect_index')) {
+    /**
+     * bisect.index() — O(log n) find index of $x in sorted sequence, or -1.
+     *   py_bisect_index([1, 3, 5], 3)  → 1
+     */
+    function py_bisect_index(array|PyList $a, mixed $x, int $lo = 0, ?int $hi = null, ?callable $key = null): int
+    {
+        return Bisect::index($a, $x, $lo, $hi, $key);
+    }
+}
+
+if (!function_exists('py_bisect_contains')) {
+    /**
+     * bisect.contains() — O(log n) membership test on a sorted sequence.
+     *   py_bisect_contains([1, 3, 5], 3)  → true
+     */
+    function py_bisect_contains(array|PyList $a, mixed $x, ?callable $key = null): bool
+    {
+        return Bisect::contains($a, $x, $key);
+    }
+}
+
+if (!function_exists('py_insort_left')) {
+    /**
+     * bisect.insort_left() — insert maintaining sorted order (left of existing).
+     *   $arr = [1, 3, 5]; py_insort_left($arr, 3);  → $arr = [1, 3, 3, 5]
+     */
+    function py_insort_left(array|PyList &$a, mixed $x, int $lo = 0, ?int $hi = null, ?callable $key = null): void
+    {
+        Bisect::insort_left($a, $x, $lo, $hi, $key);
+    }
+}
+
+if (!function_exists('py_insort_right')) {
+    /**
+     * bisect.insort_right() — insert maintaining sorted order (right of existing).
+     *   $arr = [1, 3, 5]; py_insort_right($arr, 3);  → $arr = [1, 3, 3, 5]
+     */
+    function py_insort_right(array|PyList &$a, mixed $x, int $lo = 0, ?int $hi = null, ?callable $key = null): void
+    {
+        Bisect::insort_right($a, $x, $lo, $hi, $key);
+    }
+}
+
+if (!function_exists('py_bisect_left')) {
+    /**
+     * bisect.bisect_left() — find leftmost insertion point.
+     *   py_bisect_left([1, 3, 5], 3)  → 1
+     */
+    function py_bisect_left(array|PyList $a, mixed $x, int $lo = 0, ?int $hi = null, ?callable $key = null): int
+    {
+        return Bisect::bisect_left($a, $x, $lo, $hi, $key);
+    }
+}
+
+if (!function_exists('py_bisect_right')) {
+    /**
+     * bisect.bisect_right() — find rightmost insertion point.
+     *   py_bisect_right([1, 3, 5], 3)  → 2
+     */
+    function py_bisect_right(array|PyList $a, mixed $x, int $lo = 0, ?int $hi = null, ?callable $key = null): int
+    {
+        return Bisect::bisect_right($a, $x, $lo, $hi, $key);
+    }
+}
+
+if (!function_exists('py_insort')) {
+    /**
+     * bisect.insort() — insert into sorted sequence maintaining order.
+     *   $arr = [1, 3, 5]; py_insort($arr, 4);  → $arr = [1, 3, 4, 5]
+     */
+    function py_insort(array|PyList &$a, mixed $x, int $lo = 0, ?int $hi = null, ?callable $key = null): void
+    {
+        Bisect::insort($a, $x, $lo, $hi, $key);
+    }
+}
+
+if (!function_exists('py_copyfile')) {
+    /**
+     * shutil.copyfile() — copy file content only (no metadata).
+     *   py_copyfile('/src/a.txt', '/dst/a.txt')
+     */
+    function py_copyfile(string|PyPath $src, string|PyPath $dst): PyPath
+    {
+        return Shutil::copyfile($src, $dst);
+    }
+}
+
+if (!function_exists('py_copy')) {
+    /**
+     * shutil.copy() — copy file preserving permissions.
+     * If $dst is a directory, copies into it with the same name.
+     *   py_copy('/src/a.txt', '/dst/')
+     */
+    function py_copy(string|PyPath $src, string|PyPath $dst): PyPath
+    {
+        return Shutil::copy($src, $dst);
+    }
+}
+
+if (!function_exists('py_copy2')) {
+    /**
+     * shutil.copy2() — copy file preserving permissions + timestamps.
+     *   py_copy2('/src/a.txt', '/dst/a.txt')
+     */
+    function py_copy2(string|PyPath $src, string|PyPath $dst): PyPath
+    {
+        return Shutil::copy2($src, $dst);
+    }
+}
+
+if (!function_exists('py_copytree')) {
+    /**
+     * shutil.copytree() — recursively copy a directory tree.
+     *   py_copytree('/src/project', '/backup/project')
+     */
+    function py_copytree(string|PyPath $src, string|PyPath $dst, bool $dirs_exist_ok = false, ?callable $ignore = null): PyPath
+    {
+        return Shutil::copytree($src, $dst, $dirs_exist_ok, $ignore);
+    }
+}
+
+if (!function_exists('py_rmtree')) {
+    /**
+     * shutil.rmtree() — recursively remove a directory tree.
+     *   py_rmtree('/tmp/build')
+     */
+    function py_rmtree(string|PyPath $path, bool $ignore_errors = false): void
+    {
+        Shutil::rmtree($path, $ignore_errors);
+    }
+}
+
+if (!function_exists('py_move')) {
+    /**
+     * shutil.move() — move file or directory. If $dst is an existing dir, moves inside it.
+     *   py_move('/old/file.txt', '/new/file.txt')
+     */
+    function py_move(string|PyPath $src, string|PyPath $dst): PyPath
+    {
+        return Shutil::move($src, $dst);
+    }
+}
+
+if (!function_exists('py_disk_usage')) {
+    /**
+     * shutil.disk_usage() — return disk space as ['total', 'used', 'free'] in bytes.
+     *   py_disk_usage('/')['free']
+     */
+    function py_disk_usage(string|PyPath $path): array
+    {
+        return Shutil::disk_usage($path);
+    }
+}
+
+if (!function_exists('py_which')) {
+    /**
+     * shutil.which() — locate an executable in PATH.
+     *   py_which('php')  → PyPath('/usr/bin/php')
+     */
+    function py_which(string $name): ?PyPath
+    {
+        return Shutil::which($name);
+    }
+}
+
+if (!function_exists('py_make_archive')) {
+    /**
+     * shutil.make_archive() — create an archive (.zip or .tar.gz).
+     *   py_make_archive('/tmp/backup', 'zip', '/src/project')
+     */
+    function py_make_archive(string $baseName, string $format, string|PyPath $rootDir): PyPath
+    {
+        return Shutil::make_archive($baseName, $format, $rootDir);
+    }
+}
+
+if (!function_exists('py_unpack_archive')) {
+    /**
+     * shutil.unpack_archive() — extract an archive.
+     *   py_unpack_archive('/tmp/backup.zip', '/dst')
+     */
+    function py_unpack_archive(string|PyPath $filename, string|PyPath $extractDir): void
+    {
+        Shutil::unpack_archive($filename, $extractDir);
     }
 }

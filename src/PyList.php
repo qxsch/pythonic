@@ -69,6 +69,9 @@ class PyList implements ArrayAccess, Countable, IteratorAggregate, JsonSerializa
 
     public function offsetExists(mixed $offset): bool
     {
+        if (is_string($offset) && static::parseSliceNotation($offset) !== null) {
+            return true; // slice notation is always structurally valid
+        }
         try {
             $this->resolveIndex((int)$offset);
             return true;
@@ -77,8 +80,24 @@ class PyList implements ArrayAccess, Countable, IteratorAggregate, JsonSerializa
         }
     }
 
+    /**
+     * Get item by index or Python-style slice notation string.
+     *
+     *   $list[0]       // first element
+     *   $list[-1]      // last element
+     *   $list["1:3"]   // slice(1, 3)
+     *   $list["::2"]   // slice(null, null, 2)
+     *   $list["::-1"]  // slice(null, null, -1) — reversed
+     */
     public function offsetGet(mixed $offset): mixed
     {
+        if (is_string($offset)) {
+            $slice = static::parseSliceNotation($offset);
+            if ($slice !== null) {
+                [$start, $stop, $step] = $slice;
+                return $this->slice($start, $stop, $step ?? 1);
+            }
+        }
         return $this->data[$this->resolveIndex((int)$offset)];
     }
 

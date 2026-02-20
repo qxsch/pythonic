@@ -76,4 +76,28 @@ trait PyObject
      * Convert to plain PHP value.
      */
     abstract public function toPhp(): mixed;
+
+    /**
+     * Parse a Python-style slice notation string.
+     *
+     * Accepts formats like "1:3", "::2", "::-1", "1:", ":5", "1:10:2".
+     * Returns [start, stop, step] with nulls for omitted parts,
+     * or null if the string is not a valid slice notation.
+     */
+    protected static function parseSliceNotation(string $offset): ?array
+    {
+        $offset = trim($offset);
+        // Must contain at least one colon to be a slice
+        if (!str_contains($offset, ':')) {
+            return null;
+        }
+        // Match slice pattern: optional_int : optional_int (: optional_int)?
+        if (!preg_match('/^(-?\d*):(-?\d*)(?::(-?\d*))?$/', $offset, $m)) {
+            return null;
+        }
+        $start = ($m[1] !== '') ? (int)$m[1] : null;
+        $stop  = ($m[2] !== '') ? (int)$m[2] : null;
+        $step  = isset($m[3]) && $m[3] !== '' ? (int)$m[3] : null;
+        return [$start, $stop, $step];
+    }
 }
